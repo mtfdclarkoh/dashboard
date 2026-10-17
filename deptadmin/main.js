@@ -560,6 +560,7 @@ function setupTickerLogic() {
 function setupUnitStatusLogic() {
     unitStatusCollectionRef = collection(db, 'unitStatus');
     const form = document.querySelector('#view-units #update-form');
+    const uppercase = value => String(value ?? '').toUpperCase();
     
     // Update
     bindOnce(form, 'submit', async (e) => {
@@ -569,12 +570,12 @@ function setupUnitStatusLogic() {
         
         try {
             const fd = new FormData(form);
-            const unitId = fd.get('unit');
+            const unitId = uppercase(fd.get('unit'));
             await setDoc(doc(db, 'unitStatus', unitId), {
                 unit: unitId,
-                status: fd.get('status'),
-                location: fd.get('location'),
-                comments: fd.get('comments'),
+                status: uppercase(fd.get('status')),
+                location: uppercase(fd.get('location')),
+                comments: uppercase(fd.get('comments')),
                 reported: serverTimestamp()
             });
             showMessage(document.getElementById('message-box-unit'), 'Unit updated.', 'success');
@@ -600,19 +601,19 @@ function setupUnitStatusLogic() {
 
         units.forEach(u => {
             let color = 'text-gray-700 bg-gray-100';
-            if(u.status === 'In Service') color = 'text-green-800 bg-green-100';
-            else if(u.status === 'OOS') color = 'text-red-800 bg-red-100';
-            else if(u.status === 'Limited Service') color = 'text-yellow-800 bg-yellow-100';
+            if(uppercase(u.status) === 'IN SERVICE') color = 'text-green-800 bg-green-100';
+            else if(uppercase(u.status) === 'OOS') color = 'text-red-800 bg-red-100';
+            else if(uppercase(u.status) === 'LIMITED SERVICE') color = 'text-yellow-800 bg-yellow-100';
 
             container.innerHTML += `
                 <div class="p-4 border border-gray-200 rounded-lg bg-white shadow-sm flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-gray-900">${escapeHtml(u.unit)}</h3>
-                            <span class="text-xs font-bold px-2 py-1 rounded-full ${color}">${escapeHtml(u.status)}</span>
+                            <h3 class="font-bold text-gray-900">${escapeHtml(uppercase(u.unit))}</h3>
+                            <span class="text-xs font-bold px-2 py-1 rounded-full ${color}">${escapeHtml(uppercase(u.status))}</span>
                         </div>
-                        <p class="text-sm text-gray-600"><span class="font-semibold">Loc:</span> ${escapeHtml(u.location)}</p>
-                        <p class="text-sm text-gray-500 italic mt-1">"${escapeHtml(u.comments || '-')}"</p>
+                        <p class="text-sm text-gray-600"><span class="font-semibold">Loc:</span> ${escapeHtml(uppercase(u.location))}</p>
+                        <p class="text-sm text-gray-500 italic mt-1">"${escapeHtml(uppercase(u.comments || '-'))}"</p>
                     </div>
                     <p class="text-xs text-gray-400 mt-3 pt-2 border-t text-right">Updated: ${formatFirestoreTimestamp(u.reported)}</p>
                 </div>
