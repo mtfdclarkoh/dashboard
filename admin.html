@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-BjWlxgrOj5CS//BBBuvOuBVbA3RzKDbmd3zSVz/4vjk='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-h+DQx7PGEhuBToKoNE8xXei7G9KSNhM1aFcXWzuK0Ko='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
     <title>MTFD Master Settings</title>
     <link rel="icon" type="image/png" href="Assets/madlogo.png">
     <link rel="stylesheet" href="app/styles.css">
@@ -56,7 +56,6 @@
         <nav class="mb-6">
             <ul class="flex border-b border-gray-300 flex-wrap">
                 <li><button data-tab="weather" class="nav-tab py-2 px-4 font-medium">Weather</button></li>
-                <li><button data-tab="logo" class="nav-tab py-2 px-4 font-medium">Logo</button></li>
                 <li><button data-tab="gslides" class="nav-tab py-2 px-4 font-medium">Google Slides</button></li>
                 <li><button data-tab="news" class="nav-tab py-2 px-4 font-medium">News Feed</button></li>
                 <li><button data-tab="nws" class="nav-tab py-2 px-4 font-medium">Alerts</button></li>
@@ -80,17 +79,6 @@
                                 <div><label class="block text-sm font-medium text-gray-700">Longitude</label><input type="number" step="any" id="weather_longitude" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 text-black"></div>
                                 <div><label class="block text-sm font-medium text-gray-700">Refresh (min)</label><input type="number" id="weather_refreshIntervalMinutes" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 text-black"></div>
                             </div>
-                        </fieldset>
-                    </div>
-                    <div id="tab-logo" class="tab-panel">
-                        <fieldset class="border-b border-gray-200 py-6">
-                            <legend class="text-lg font-medium text-gray-900">Logo</legend>
-                            <div class="mt-4"><label class="block text-sm font-medium text-gray-700">ImgBB API Key (used for this upload only)</label><input type="password" id="imgbb_api_key" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 text-black"></div>
-                            <div class="mt-4"><input type="file" id="logo_upload" accept="image/*" class="mt-1 block w-full text-sm text-gray-500">
-                                <button type="button" id="upload-logo-btn" class="mt-3 inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">Upload & Save</button>
-                                <span id="upload-feedback" class="ml-4 text-gray-600"></span>
-                            </div>
-                            <div class="mt-4"><img id="logo-preview" class="mt-2 h-24 w-auto rounded bg-gray-50"><input type="hidden" id="logo_url"></div>
                         </fieldset>
                     </div>
                     <div id="tab-gslides" class="tab-panel">
@@ -135,6 +123,26 @@
                                 <input type="text" id="trans-replacement" placeholder="Replacement (e.g., Sick)" class="flex-1 rounded-md border-gray-300 shadow-sm p-2 text-black border">
                                 <button type="button" id="add-trans-btn" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium">Add</button>
                             </div>
+                            <details id="translation-import" class="border border-gray-200 rounded-lg p-4 mb-6 bg-gray-50">
+                                <summary class="font-semibold cursor-pointer">Import multiple translations</summary>
+                                <p class="text-sm text-gray-600 mt-3">Upload a CSV or TSV with Raw Value and Mapped Value columns, like NATURES.csv. Original and Replacement headers also work, as does a JSON array of original/replacement entries. Up to 500 entries; 200 characters per field.</p>
+                                <pre class="text-sm bg-white border rounded p-3 my-3 overflow-auto">Raw Value,Mapped Value
+GENERAL ILLNESS,SICK
+STRUCTURE FIRE,FIRE</pre>
+                                <p class="text-sm text-gray-600 mb-3">Matching originals ignore capitalization and extra spaces. Imported replacements update matching entries; other entries are kept. For repeated originals in a file, the last entry wins.</p>
+                                <label for="translation-import-file" class="block text-sm font-medium mb-2">Choose a translation file</label>
+                                <input id="translation-import-file" type="file" accept=".csv,.tsv,.json,text/csv,application/json" class="block w-full text-sm">
+                                <p id="translation-import-status" role="status" aria-live="polite" class="text-sm mt-3"></p>
+                                <div id="translation-import-preview" class="hidden mt-3">
+                                    <div class="overflow-auto max-h-64 border rounded bg-white">
+                                        <table class="w-full text-sm text-left"><thead><tr><th scope="col" class="p-2 border-b">Original</th><th scope="col" class="p-2 border-b">Replacement</th></tr></thead><tbody id="translation-import-rows"></tbody></table>
+                                    </div>
+                                    <div class="flex gap-3 mt-3">
+                                        <button type="button" id="translation-import-apply" class="bg-blue-600 text-white rounded px-4 py-2">Import into list</button>
+                                        <button type="button" id="translation-import-cancel" class="border rounded px-4 py-2">Cancel import</button>
+                                    </div>
+                                </div>
+                            </details>
                             <ul id="translations-list" class="space-y-3">
                                 </ul>
                         </fieldset>
@@ -165,7 +173,7 @@
           getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc,
           query, orderBy, getDoc, setDoc
         } = window.MTFDFirebase;
-        const { escapeHtml, finiteNumber, safeHttpsUrl, safeIframeMarkup } = window.MTFDSafe;
+        const { escapeHtml, finiteNumber, safeHttpsUrl, safeIframeMarkup, parseTranslationImport, mergeTranslationImport } = window.MTFDSafe;
 
         const firebaseConfig = {
   apiKey: "AIzaSyDPYL6i6R_PcF8JPqsM6xocVxl2GWOqnTI",
@@ -219,8 +227,6 @@
                      if(el) el.value = config[key] || '';
                  });
                 
-                const logoUrl = safeHttpsUrl(config.logoUrl);
-                if(logoUrl) document.getElementById('logo-preview').src = logoUrl;
                 
                 // Load translations
                 activeTranslations = config.translations || [];
@@ -271,12 +277,68 @@
             }
         });
 
+        let pendingTranslationImport = [];
+        let importRequest = 0;
+        const importFile = document.getElementById('translation-import-file');
+        const importStatus = document.getElementById('translation-import-status');
+        const importPreview = document.getElementById('translation-import-preview');
+        const importRows = document.getElementById('translation-import-rows');
+
+        function resetTranslationImport() {
+            importRequest++;
+            pendingTranslationImport = [];
+            importPreview.classList.add('hidden');
+            importRows.innerHTML = '';
+            importFile.value = '';
+        }
+
+        importFile.addEventListener('change', async () => {
+            const request = ++importRequest;
+            pendingTranslationImport = [];
+            importPreview.classList.add('hidden');
+            importRows.innerHTML = '';
+            const file = importFile.files[0];
+            if (!file) { importStatus.textContent = ''; return; }
+            importStatus.textContent = 'Reading file...';
+            try {
+                if (file.size > 1024 * 1024) throw new Error('Choose a file smaller than 1 MB.');
+                const text = await file.text();
+                if (request !== importRequest) return;
+                const rows = parseTranslationImport(text, file.name);
+                const preview = mergeTranslationImport(activeTranslations, rows);
+                pendingTranslationImport = rows;
+                importStatus.textContent = preview.added + ' new, ' + preview.updated + ' updated, ' + preview.unchanged + ' unchanged.' +
+                    (preview.duplicates ? ' ' + preview.duplicates + ' repeated originals; last entry wins.' : '') + ' Review below before importing.';
+                importRows.innerHTML = rows.map(row => '<tr><td class="p-2 border-b">' + escapeHtml(row.original) + '</td><td class="p-2 border-b">' + escapeHtml(row.replacement) + '</td></tr>').join('');
+                importPreview.classList.remove('hidden');
+            } catch (error) {
+                if (request !== importRequest) return;
+                importStatus.textContent = 'Import failed: ' + error.message + ' The current list has not changed.';
+            }
+        });
+
+        document.getElementById('translation-import-apply').addEventListener('click', () => {
+            if (!pendingTranslationImport.length) return;
+            try {
+                const merged = mergeTranslationImport(activeTranslations, pendingTranslationImport);
+                activeTranslations = merged.translations;
+                renderTranslations();
+                resetTranslationImport();
+                importStatus.textContent = 'Imported ' + merged.added + ' new and ' + merged.updated + ' updated translations. Click Save Settings to save them to the dashboard.';
+            } catch (error) { importStatus.textContent = error.message; }
+        });
+
+        document.getElementById('translation-import-cancel').addEventListener('click', () => {
+            resetTranslationImport();
+            importStatus.textContent = 'Import canceled. The current list has not changed.';
+        });
+
         document.getElementById('config-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             clearGlobalError();
             const data = {};
             Array.from(e.target.elements).forEach(el => {
-                if(el.id && el.type !== 'submit' && el.type !== 'button' && el.id !== 'trans-original' && el.id !== 'trans-replacement' && el.id !== 'imgbb_api_key' && el.id !== 'logo_upload') {
+                if(el.id && !el.closest('#translation-import') && el.type !== 'submit' && el.type !== 'button' && el.id !== 'trans-original' && el.id !== 'trans-replacement') {
                     data[el.id] = el.type === 'number' ? finiteNumber(el.value, 0) : el.value;
                 }
             });
@@ -392,26 +454,6 @@
         document.getElementById('force-reload-btn').addEventListener('click', async () => {
              if(confirm('Reload all dashboards?')) await setDoc(forceReloadDocRef, { timestamp: new Date().toISOString() });
         });
-        document.getElementById('upload-logo-btn').addEventListener('click', async () => {
-            const file = document.getElementById('logo_upload').files[0];
-            const key = document.getElementById('imgbb_api_key').value;
-            if(!file || !key) return;
-            try {
-                const fd = new FormData(); fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key)}`, { method:'POST', body:fd });
-                if (!res.ok) throw new Error(`Upload service returned ${res.status}.`);
-                const json = await res.json();
-                const uploadedUrl = safeHttpsUrl(json?.data?.display_url);
-                if(!json.success || !uploadedUrl) throw new Error('Upload service returned an invalid image URL.');
-                document.getElementById('logo_url').value = uploadedUrl;
-                document.getElementById('logo-preview').src = uploadedUrl;
-                await setDoc(configDocRef, { logoUrl: uploadedUrl }, { merge: true });
-                document.getElementById('imgbb_api_key').value = '';
-            } catch (error) {
-                showGlobalError(`Logo upload failed: ${error.message}`);
-            }
-        });
-
         // Auth
         initializeFirebase();
         onAuthStateChanged(auth, (user) => {
