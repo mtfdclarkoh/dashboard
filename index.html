@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-RhMTpID/hKRJhdlR6Oi4mUxO35e36yE+NQCuJ+goS3Y='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-x8DEIPrO5G3HjnzVjtw4hR7XMQWra9xV2FeVIKi7SP8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>MTFD Dashboard</title>
   <link rel="icon" type="image/png" href="Assets/madlogo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="Assets/madlogo.png">
@@ -159,7 +159,7 @@
             iframe: `<div id="feed-container" class="relative w-full h-full overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 text-white font-sans">
                         <div id="feed-track" class="absolute top-0 left-0 w-full h-full"></div>
                      </div>`,
-            duration: 60000, 
+            duration: 20000, 
             order: 2 
         };
 
@@ -271,6 +271,19 @@
             });
         }
 
+        function newsFeedItemDuration() {
+            return finiteNumber(dashboardConfig?.newsFeed_secondsPerItem || 20, 20, 1, 3600) * 1000;
+        }
+
+        function updateNewsFeedTiming(restartVisible = false) {
+            newsFeedSlideSource.duration = Math.max(newsFeedPosts.length, 1) * newsFeedItemDuration();
+            const feedContainer = slideDivs[activeSlideIndex].querySelector('#feed-container');
+            if (restartVisible && feedContainer) {
+                renderFeed(newsFeedPosts, feedContainer);
+                scheduleNextSlide(newsFeedSlideSource.duration);
+            }
+        }
+
         async function fetchNewsFeed() {
             if (!dashboardConfig || !db) return;
             try {
@@ -281,7 +294,7 @@
                     'Location': p.location, 'Applies To': p.appliesTo, 'Posted by': p.postedBy
                 }));
                 newsFeedPosts = filterActivePosts(rows);
-                newsFeedSlideSource.duration = Math.max(newsFeedPosts.length * (dashboardConfig.newsFeed_secondsPerItem || 20) * 1000, 60000);
+                updateNewsFeedTiming(true);
             } catch (error) {
                 setSystemStatus('Department news connection unavailable');
                 console.error('News read failed:', error);
@@ -394,7 +407,7 @@
             if (postCount <= 1) return; 
 
             let slideIndex = 0; 
-            const secondsPerItem = (dashboardConfig && dashboardConfig.newsFeed_secondsPerItem) ? dashboardConfig.newsFeed_secondsPerItem : 20;
+            const itemDuration = newsFeedItemDuration();
 
             newsFeedSlideInterval = setInterval(() => {
                 if (slideIndex < postCount - 1) {
@@ -407,7 +420,7 @@
                     clearInterval(newsFeedSlideInterval);
                     newsFeedSlideInterval = null;
                 }
-            }, secondsPerItem * 1000);
+            }, itemDuration);
         }
 
         async function setupGoogleSlides() {
@@ -840,7 +853,9 @@
 
             onSnapshot(configDocRef, async (docSnap) => {
                 {
+                    const previousNewsItemDuration = newsFeedItemDuration();
                     dashboardConfig = { weather_locationName: 'South Charleston, OH', weather_latitude: 39.825, weather_longitude: -83.635, nwsAlertZone: 'OHZ053', newsFeed_secondsPerItem: 20, ...(docSnap.exists() ? docSnap.data() : {}) };
+                    updateNewsFeedTiming(!firstConfigLoad && previousNewsItemDuration !== newsFeedItemDuration());
 
                     const logoImg = document.getElementById('dashboard-logo');
                     const logoUrl = safeHttpsUrl(dashboardConfig.logoUrl);
