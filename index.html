@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-zdeDWbQvws4S0wZGHz/4Q+MgpbOLV7LNxa9GZ7T1hKU='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-RhMTpID/hKRJhdlR6Oi4mUxO35e36yE+NQCuJ+goS3Y='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>MTFD Dashboard</title>
   <link rel="icon" type="image/png" href="Assets/madlogo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="Assets/madlogo.png">
@@ -103,7 +103,7 @@
 
   <script type="module">
     const { initializeApp, getFirestore, doc, onSnapshot, collection, getDocs, query, orderBy } = window.MTFDFirebase;
-    const { escapeHtml, finiteNumber, isFreshEvent, safeHttpsUrl, safeIframeMarkup } = window.MTFDSafe;
+    const { escapeHtml, finiteNumber, isFreshEvent, safeHttpsUrl, safeIframeMarkup, translateDispatchText } = window.MTFDSafe;
  
     document.addEventListener('DOMContentLoaded', async () => {
         const statusElement = document.getElementById('system-status');
@@ -606,20 +606,9 @@
         function showDispatchModal(data, durationMs) {
             const overlay = document.getElementById("dispatchAlertOverlay");
             
-            let translatedNarrative = data.narrative || 'DISPATCH';
-            let translatedCallType = data.callType || 'See CAD for details';
-
-            // Apply custom translations from config if available
-            if (dashboardConfig && dashboardConfig.translations) {
-                dashboardConfig.translations.forEach(t => {
-                    if (translatedNarrative.toLowerCase().trim() === t.original.toLowerCase().trim()) {
-                        translatedNarrative = t.replacement;
-                    }
-                    if (translatedCallType.toLowerCase().trim() === t.original.toLowerCase().trim()) {
-                        translatedCallType = t.replacement;
-                    }
-                });
-            }
+            const translations = dashboardConfig?.translations || [];
+            const translatedNarrative = translateDispatchText(data.narrative || 'DISPATCH', translations);
+            const translatedCallType = data.callType || 'See CAD for details';
 
             document.getElementById("run-type").textContent = translatedNarrative;
             
