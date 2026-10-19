@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-h+DQx7PGEhuBToKoNE8xXei7G9KSNhM1aFcXWzuK0Ko='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-ZtpiIpVb1ia5Tji3JrpU0xFDbgjRL5iAVHA445b5sDw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
     <title>MTFD Master Settings</title>
     <link rel="icon" type="image/png" href="Assets/madlogo.png">
     <link rel="stylesheet" href="app/styles.css">
@@ -40,13 +40,17 @@
                 <h1 class="text-4xl font-black text-gray-800">MTFD Master Settings</h1>
                 <p id="user-email-display" class="text-sm text-gray-600 mt-1"></p>
             </div>
-            <div class="flex gap-4 mt-4 md:mt-0">
+            <div class="flex flex-wrap gap-4 mt-4 md:mt-0">
                 <a href="deptadmin/index.html" class="inline-flex justify-center rounded-lg border border-indigo-200 bg-indigo-50 py-2 px-6 text-base font-medium text-indigo-700 shadow-sm hover:bg-indigo-100">Daily Content Admin</a>
                 <button id="manual-refresh-btn" class="inline-flex justify-center rounded-lg border border-transparent bg-green-600 py-2 px-6 text-base font-medium text-white shadow-sm hover:bg-green-700">Refresh Dashboard</button>
                 <button id="force-reload-btn" class="inline-flex justify-center rounded-lg border border-transparent bg-red-600 py-2 px-6 text-base font-medium text-white shadow-sm hover:bg-red-700">Force Reload All</button>
+                <button id="force-update-btn" type="button" class="inline-flex justify-center rounded-lg border border-transparent bg-blue-600 py-2 px-6 text-base font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50">Update Kiosks Now</button>
                 <button id="sign-out-btn" class="inline-flex justify-center rounded-lg border border-gray-300 bg-white py-2 px-6 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50">Sign Out</button>
             </div>
         </div>
+
+        <p class="text-sm text-gray-600 mb-2">Update Kiosks Now checks for a newer app version and installs it as soon as the download finishes. Active alerts finish first. Requires kiosk app 1.0.3 or later.</p>
+        <p id="force-update-status" class="text-sm text-gray-700 mb-6" role="status" aria-live="polite"></p>
 
         <div id="global-error-panel" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
             <p class="font-bold">Error</p>
@@ -171,7 +175,7 @@ STRUCTURE FIRE,FIRE</pre>
         const {
           initializeApp, getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut,
           getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc,
-          query, orderBy, getDoc, setDoc
+          query, orderBy, getDoc, setDoc, serverTimestamp
         } = window.MTFDFirebase;
         const { escapeHtml, finiteNumber, safeHttpsUrl, safeIframeMarkup, parseTranslationImport, mergeTranslationImport } = window.MTFDSafe;
 
@@ -186,7 +190,7 @@ STRUCTURE FIRE,FIRE</pre>
 };
         
         let db, auth;
-        let slidesCollection, configDocRef, manualAlertDocRef, forceReloadDocRef;
+        let slidesCollection, configDocRef, manualAlertDocRef, forceReloadDocRef, forceUpdateDocRef;
         let activeTranslations = [];
         let slidesUnsubscribe = null;
 
@@ -213,6 +217,7 @@ STRUCTURE FIRE,FIRE</pre>
                 configDocRef = doc(db, 'config', 'global');
                 manualAlertDocRef = doc(db, 'alerts', 'manual_alert');
                 forceReloadDocRef = doc(db, 'alerts', 'force_reload');
+                forceUpdateDocRef = doc(db, 'alerts', 'force_update');
                 return true;
             } catch(e) { console.error("Init Error", e); return false; }
         }
@@ -453,6 +458,26 @@ STRUCTURE FIRE,FIRE</pre>
         });
         document.getElementById('force-reload-btn').addEventListener('click', async () => {
              if(confirm('Reload all dashboards?')) await setDoc(forceReloadDocRef, { timestamp: new Date().toISOString() });
+        });
+        document.getElementById('force-update-btn').addEventListener('click', async () => {
+            if (!confirm('Update all online kiosks now? They will restart after downloading a newer version. Active alerts will finish first.')) return;
+            const button = document.getElementById('force-update-btn');
+            const status = document.getElementById('force-update-status');
+            clearGlobalError();
+            button.disabled = true;
+            status.textContent = 'Sending update request...';
+            try {
+                if (!auth.currentUser) throw new Error('Sign in to send an update request.');
+                await setDoc(forceUpdateDocRef, {
+                    requestId: crypto.randomUUID(),
+                    timestamp: serverTimestamp(),
+                    requestedBy: auth.currentUser.uid
+                });
+                status.textContent = 'Update request sent. Online kiosks running 1.0.3 or later will check now and install a newer version after downloading. Active alerts finish first. Kiosks already up to date stay running.';
+            } catch (error) {
+                status.textContent = 'Update request could not be sent.';
+                showGlobalError(`Kiosk update request failed: ${error.message}`);
+            } finally { button.disabled = false; }
         });
         // Auth
         initializeFirebase();
