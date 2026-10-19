@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-x8DEIPrO5G3HjnzVjtw4hR7XMQWra9xV2FeVIKi7SP8='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-5xJmTnrmBYrgSIzOfZLMTlMNxWhloWTJ+mXIqZHyKbE='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; connect-src 'self' https: wss:; frame-src https:; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>MTFD Dashboard</title>
   <link rel="icon" type="image/png" href="Assets/madlogo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="Assets/madlogo.png">
@@ -146,6 +146,7 @@
         let weatherInterval = null;
         let slidesRefreshInterval = null;
         let slideRotationTimer = null;
+        let slideTransitionId = 0;
         let tickerInterval = null; 
 
         const slideDivs = document.querySelectorAll('.slide');
@@ -460,7 +461,7 @@
                 const embedUrlObject = new URL(embedBaseUrl);
                 embedUrlObject.searchParams.set('delayms', String(delayMs));
                 embedUrlObject.searchParams.set('start', 'true');
-                embedUrlObject.searchParams.set('loop', 'true');
+                embedUrlObject.searchParams.set('loop', 'false');
                 const embedUrl = embedUrlObject.href;
                 const iframeHtml = safeIframeMarkup(embedUrl, 'Google Slides');
 
@@ -496,6 +497,7 @@
             }
 
             const nextSlideIndex = 1 - activeSlideIndex;
+            const transitionId = ++slideTransitionId;
             const currentSlide = slideDivs[activeSlideIndex];
             const nextSlide = slideDivs[nextSlideIndex];
             
@@ -518,8 +520,10 @@
 
             const iframe = nextSlide.querySelector('iframe');
             
+            let transitioned = false;
             const transition = () => {
-                if (nextSlide.classList.contains('opacity-100')) return;
+                if (transitioned || transitionId !== slideTransitionId) return;
+                transitioned = true;
                 currentSlide.classList.remove('opacity-100');
                 currentSlide.classList.add('opacity-0');
                 nextSlide.classList.remove('opacity-0');
@@ -536,6 +540,7 @@
 
                 iframe.onload = () => { loaded = true; clearTimeout(loadTimeout); transition(); };
                 iframe.onerror = () => {
+                    if (transitionId !== slideTransitionId) return;
                     loaded = true; clearTimeout(loadTimeout);
                     nextSlide.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gray-800 text-red-400 p-8 text-center text-2xl"><strong>Error:</strong><br>Could not load slide content.</div>`;
                     transition();
@@ -546,9 +551,15 @@
         }
 
         async function startRotation() {
+            const transitionId = ++slideTransitionId;
             if (slideRotationTimer) clearTimeout(slideRotationTimer);
+            if (newsFeedSlideInterval) {
+                clearInterval(newsFeedSlideInterval);
+                newsFeedSlideInterval = null;
+            }
             
             await setupGoogleSlides(); 
+            if (transitionId !== slideTransitionId) return;
             
             if (slideSources.length === 0) {
                 slideDivs[0].innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gray-800 text-yellow-300 p-8 text-center text-2xl">No slides configured. Please add slides in the admin console.</div>`;
@@ -583,8 +594,10 @@
             slideDivs[1].classList.remove('opacity-100');
             slideDivs[1].classList.add('opacity-0');
             
+            let transitioned = false;
             const transition = () => {
-                if (slideDivs[0].classList.contains('opacity-100')) return;
+                if (transitioned || transitionId !== slideTransitionId) return;
+                transitioned = true;
                 slideDivs[0].classList.remove('opacity-0');
                 slideDivs[0].classList.add('opacity-100');
                 activeSlideIndex = 0;
